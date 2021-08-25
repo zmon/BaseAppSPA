@@ -15,6 +15,10 @@ export default {
         }
     },
     created() {},
-    methods: {}
+    methods: {
+      getData() {
+        
+      }
+    }
 }
 </script>

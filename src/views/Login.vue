@@ -45,12 +45,12 @@ export default {
   methods: {
     attemptLogin() {
       axios
-        .post("https://base-app.test/api/" + "login", {
+        .post(process.env.VUE_APP_BASE_URL + "oauth/token", {
           username: this.username,
           password: this.password,
           grant_type: "password",
-          client_id: 2,
-          client_secret: "NAJPkcUWnsvA7GS8D8Jm9RgScI3GIlHx6ITHOQ0H",
+          client_id: process.env.VUE_APP_CLIENT_ID,
+          client_secret: process.env.VUE_APP_CLIENT_SECRET,
         })
         .then((res) => {
           console.log(res);
