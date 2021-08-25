@@ -1,20 +1,308 @@
 <template>
-  <div class="about">
-    <h1>This is an about page</h1>
+  <div class="container mt-5">
+    <div v-if="global_error_message" class="alert alert-danger" role="alert">
+      {{ global_error_message }}
+    </div>
+    <div v-if="server_message !== false" class="alert alert-danger" role="alert">
+      {{ this.server_message }} <a v-if="try_logging_in" href="/login">Login</a>
+    </div>
+    <!-- Grid Actions Top -->
+    <div class="grid-top row mb-0 align-items-center">
+      <div class="col-lg-12 mb-2">
+        <form class="form-inline mb-0">
+          <a v-if="permissions.can_add" href="#" @click="goToNew"
+             class="btn btn-primary mb-3 mb-sm-2 mr-3">Add Organization</a>
+          <search-form-group
+              class="mb-0"
+              :errors="form_errors.keyword"
+              label="Name"
+              labelFor="keyword">
+            <input
+                name="keyword"
+                id="field_keyword"
+                v-model="query"
+                @keyup="debounceKeywordGetData()"
+                class="form-control mb-2"
+                type="text"
+                placeholder="Filter by name">
+          </search-form-group>
+        </form>
+      </div>
+    </div><!-- end Grid Actions Top -->
+
+    <!-- Grid -->
+    <div class="grid no-more-tables table-responsive mb-4">
+      <table class="table table-striped table-hover mb-0">
+        <thead>
+        <tr>
+          <ss-grid-column-header
+              v-on:selectedSort="sortColumn"
+              v-bind:selectedKey="sort_column"
+              title="Sort by Name"
+              :params="{
+                            sortField: 'name',
+                            InitialSortOrder: 'asc',
+                        }">
+            Name
+          </ss-grid-column-header>
+          <ss-grid-column-header
+              v-on:selectedSort="sortColumn"
+              v-bind:selectedKey="sort_column"
+              title="Sort by Contact Name"
+              :params="{
+                            sortField: 'contact_name',
+                            InitialSortOrder: 'asc',
+                        }">
+            Contact Name
+          </ss-grid-column-header>
+          <ss-grid-column-header
+              v-on:selectedSort="sortColumn"
+              v-bind:selectedKey="sort_column"
+              title="Sort by Email"
+              :params="{
+                            sortField: 'email',
+                            InitialSortOrder: 'asc',
+                        }">
+            Email
+          </ss-grid-column-header>
+          <ss-grid-column-header
+              v-on:selectedSort="sortColumn"
+              v-bind:selectedKey="sort_column"
+              title="Sort by File Name Alias"
+              :params="{
+                            sortField: 'file_name_alias',
+                            InitialSortOrder: 'asc',
+                        }">
+            File Name Alias
+          </ss-grid-column-header>
+          <ss-grid-column-header
+              v-on:selectedSort="sortColumn"
+              v-bind:selectedKey="sort_column"
+              title="Sort by Active"
+              :params="{
+                            sortField: 'active',
+                            InitialSortOrder: 'asc',
+                        }">
+            Active
+          </ss-grid-column-header>
+          <th style="width:20%;" class="text-lg-center">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr v-if="gridState == 'wait'">
+          <td colspan="6" class="grid-alert">
+            <div class="alert alert-info"
+                 role="alert">Please wait.
+            </div>
+          </td>
+        </tr>
+        <tr v-if="gridState == 'error'">
+          <td colspan="6" class="grid-alert">
+            <div class="alert alert-warning"
+                 role="alert">Error please try again.
+            </div>
+          </td>
+        </tr>
+
+        <tr v-if="gridState == 'good' && !gridData.length">
+          <td colspan="6" class="grid-alert">
+            <div class="alert alert-warning"
+                 role="alert">No matching records found.
+            </div>
+          </td>
+        </tr>
+
+        <tr v-else v-for="row in this.gridData" :key="row.id">
+          <td data-title="Name">
+            <a v-bind:href="'/organization/' + row.id"
+               v-if="(permissions.can_show == '1')">
+              {{ row.name }}
+            </a>
+            <span v-if="(permissions.can_show != '1')">
+                                        {{ row.name }}
+                        </span>
+          </td>
+          <td data-title="Contact Name">{{ row.contact_name }}</td>
+          <td data-title="Email">{{ row.email }}</td>
+          <td data-title="File Name Alias">{{ row.file_name_alias }}</td>
+          <td data-title="Active">
+                    <span v-if="row.active">
+                        Yes
+                    </span>
+          </td>
+          <td data-title="Actions" class="text-lg-center text-nowrap">
+            <a v-bind:href="'/organization/' + row.id + '/edit'"
+               v-if="(permissions.can_edit)"
+               class="grid-action-item">
+              Edit
+            </a>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div><!-- end Grid -->
+
+    <!-- Grid Actions Bottom -->
+    <div class="grid-bottom row mb-0 align-items-center">
+      <div class="col-lg-4 mb-2">
+        <a href="/organization/download" class="btn btn-primary mb-2 mr-2">Export to Excel</a>
+        <a href="/organization/print" class="btn btn-primary mb-2 mr-2">Print PDF</a>
+      </div>
+      <ss-grid-pagination class="col-lg-4 mb-2"
+                          v-bind:current_page="current_page"
+                          v-bind:last_page="last_page"
+                          v-bind:total="total"
+                          v-on:goto-page="getData(...arguments)">
+      </ss-grid-pagination>
+      <ss-grid-pagination-location class="col-lg-4 text-lg-right mb-2"
+                                   v-bind:current_page="current_page"
+                                   v-bind:last_page="last_page"
+                                   v-bind:total="total">
+      </ss-grid-pagination-location>
+    </div><!-- end Grid Actions Bottom -->
   </div>
 </template>
 
-<script lang="ts">
+<script>
+import SsGridColumnHeader from "../../components/SsGridColumnHeader";
+import SsGridPagination from "../../components/SsGridPagination";
 
 export default {
-    name: 'organization-index',
-    props: {},
-    data() {
-        return {
+  name: 'organization-grid',
+  components: {SsGridColumnHeader, SsGridPagination},
+  mounted: function () {
+    this.getData(this.current_page);
+  },
 
-        }
+  data: function () {
+
+    return {
+      gridState: 'wait',
+      query: "",
+      gridData: [],
+      current_page: 1,
+      last_page: null,
+      total: null,
+
+      sort_direction: 'asc',
+      sort_column: 'id',
+
+      global_error_message: null,
+
+
+      permissions: {},
+      form_errors: {
+        page: false,
+        keyword: false,
+        sort_column: false,
+        sort_direction: false,
+      },
+      server_message: false,
+      try_logging_in: false,
+    }
+  },
+
+  methods: {
+
+    // Add a slight delay as user types so we're not pinging
+    // the server every single keyup and potentially introducing race conditions:
+    debounceKeywordGetData: function() {
+      if(this.keywordTimeout) {
+        clearTimeout(this.keywordTimeout);
+      }
+      this.keywordTimeout = setTimeout(() => {
+        this.getData(1);
+      }, 500);
     },
-    created() {},
-    methods: {}
+
+    goToNew: function () {
+      window.location.href = '/organization/create';
+    },
+
+    sortColumn: function (obj) {
+      this.sort_column = obj.sortField;
+      this.sort_direction = obj.sortOrder;
+      this.getData(1);
+    },
+
+    getData: function (new_page_number) {
+
+      this.global_error_message = null;
+
+      let getPage;
+
+      getPage = this.getDataUrl(new_page_number) +
+          '&sort_column=' + this.sort_column +
+          '&sort_direction=' + this.sort_direction;
+
+      this.gridData = [];
+      this.gridState = 'wait';
+
+      if (getPage != null) {    // We have a filter
+        window.axios.get(process.env.VUE_APP_API_URL + getPage,
+            {
+              headers: {
+                Authorization: "Bearer "+ this.$store.state.token
+              }
+            }
+        )
+            .then(response => {
+              if (response.status === 200) {
+                Object.keys(this.form_errors).forEach(i => this.form_errors[i] = false);
+                this.gridData = response.data.data;
+                this.total = response.data.total;
+                this.current_page = response.data.current_page;
+                this.last_page = (response.data.last_page || 1);
+              } else {
+                this.server_message = response.status;
+              }
+              this.gridState = 'good';
+            }).catch(error => {
+          if (error.response) {
+            this.gridState = 'error';
+            if (error.response.status === 422) {
+              // Clear errors out
+              Object.keys(this.form_errors).forEach(i => this.form_errors[i] = false);
+              // Set current errors
+              Object.keys(error.response.data.errors).forEach(i => this.form_errors[i] = error.response.data.errors[i]);
+            } else if (error.response.status === 404) {  // Record not found
+              this.server_message = 'Record not found';
+              window.location = '/organization';
+            } else if (error.response.status === 419) {  // Unknown status
+              this.server_message = 'Unknown Status, please try to ';
+              this.try_logging_in = true;
+            } else if (error.response.status === 500) {  // Unknown status
+              this.server_message = 'Server Error, please try to ';
+              this.try_logging_in = true;
+            } else {
+              this.server_message = error.response.data.message;
+            }
+          } else {
+            console.log(error.response);
+            this.server_message = error;
+          }
+        });
+      }
+    },
+
+    getDataUrl: function (new_page_number) {
+
+      var url = 'organization?';
+      var queryParams = [];
+
+      queryParams.push('page=' + String(new_page_number));
+
+      if (this.query && (this.query.trim().length > 0)) queryParams.push('keyword=' + this.query);
+
+//                if (this.isDefined(this.searchType)) queryParams.push('search_type=' + this.searchType);
+//                if (this.isDefined(this.showFilter)) queryParams.push('show_filter=' + this.showFilter);
+//                if (this.isDefined(this.contractorSelected)) queryParams.push('contractor_id=' + this.contractorSelected);
+
+      if (queryParams.length > 0) url += queryParams.join('&');
+
+      return url;
+    }
+  }
 }
+
 </script>
