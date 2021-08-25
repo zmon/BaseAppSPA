@@ -54,7 +54,7 @@ export default {
         })
         .then((res) => {
           console.log(res);
-          this.$store.commit("SET_TOKEN", res.data.token);
+          this.$store.commit("SET_TOKEN", res.data.access_token);
           this.$router.push("Organizations");
         })
         .catch((e) => {
