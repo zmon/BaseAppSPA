@@ -164,8 +164,7 @@
 </template>
 
 <script>
-import SsGridColumnHeader from "../../components/SsGridColumnHeader";
-import SsGridPagination from "../../components/SsGridPagination";
+import {SsGridPagination, SsGridColumnHeader} from "../../components";
 
 export default {
   name: 'organization-grid',

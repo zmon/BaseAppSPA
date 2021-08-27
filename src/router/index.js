@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import OrganizationIndex from '../views/Organization/OrganizationIndex.vue'
 import {TokenService} from "../services/TokenService";
+import OrganizationShow from "../views/Organization/OrganizationShow";
 
 const routes = [
   {
@@ -17,6 +18,11 @@ const routes = [
     path: '/organizations',
     name: 'OrganizationIndex',
     component: () => OrganizationIndex
+  },
+  {
+    path: '/organizations/show',
+    name: 'OrganizationShow',
+    component: () => OrganizationShow
   }
 ]
 
